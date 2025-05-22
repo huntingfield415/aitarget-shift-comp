@@ -59,7 +59,59 @@ export default function DashboardPage() {
   const handleSaveClassName = async () => {
     setSaving(true)
     setError('')
+    const { data: { user }
+  const handleSaveClassInfo = async () => {
+    setSaving(true)
+    setError('')
+    const { data: { user }
+  const handleSaveShiftTime = async () => {
+    setSaving(true)
+    setError('')
     const { data: { user }, error: userErr } = await supabase.auth.getUser()
+    if (userErr || !user) {
+      setError('ログイン情報が確認できません。')
+      setSaving(false)
+      return
+    }
+
+    const { error: insertErr } = await supabase
+      .from('shift_times')
+      .insert({ user_id: user.id, content: form.shiftTime })
+
+    if (insertErr) {
+      setError('保存に失敗しました。' + insertErr.message)
+      setSaving(false)
+      return
+    }
+
+    setStatus((prev) => ({ ...prev, shiftTime: true }))
+    setSaving(false)
+    const modal = document.getElementById('shiftTimeModal')
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
+  }
+, error: userErr } = await supabase.auth.getUser()
+    if (userErr || !user) {
+      setError('ログイン情報が確認できません。')
+      setSaving(false)
+      return
+    }
+
+    const { error: insertErr } = await supabase
+      .from('class_infos')
+      .insert({ user_id: user.id, info: form.classInfo })
+
+    if (insertErr) {
+      setError('保存に失敗しました。' + insertErr.message)
+      setSaving(false)
+      return
+    }
+
+    setStatus((prev) => ({ ...prev, classInfo: true }))
+    setSaving(false)
+    const modal = document.getElementById('classInfoModal')
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
+  }
+, error: userErr } = await supabase.auth.getUser()
     if (userErr || !user) {
       setError('ログイン情報が確認できません。')
       setSaving(false)
@@ -161,6 +213,14 @@ export default function DashboardPage() {
           </div>
           <div className="modal-body">
             <textarea className="form-control" placeholder="例：0歳3人、1歳4人" value={form.classInfo} onChange={(e) => handleInput('classInfo', e.target.value)} />
+          <div className="modal-footer">
+            {error && <p className="text-danger me-auto">{error}</p>}
+            <button className="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            <button className="btn btn-primary" onClick={handleSaveClassInfo} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
+
           </div>
         </div></div>
       </div>
@@ -173,6 +233,14 @@ export default function DashboardPage() {
           </div>
           <div className="modal-body">
             <textarea className="form-control" placeholder="例：早番 7:00〜、中番 9:00〜" value={form.shiftTime} onChange={(e) => handleInput('shiftTime', e.target.value)} />
+          <div className="modal-footer">
+            {error && <p className="text-danger me-auto">{error}</p>}
+            <button className="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            <button className="btn btn-primary" onClick={handleSaveShiftTime} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
+
           </div>
         </div></div>
       </div>
