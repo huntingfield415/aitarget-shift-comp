@@ -67,7 +67,43 @@ export default function DashboardPage() {
   const handleSaveShiftTime = async () => {
     setSaving(true)
     setError('')
+    const { data: { user }
+  const handleUploadShiftImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setSaving(true)
+    setError('')
+
     const { data: { user }, error: userErr } = await supabase.auth.getUser()
+    if (userErr || !user) {
+      setError('ログインユーザーが確認できません。')
+      setSaving(false)
+      return
+    }
+
+    const filePath = `shift-${user.id}-${Date.now()}.${file.name.split('.').pop()}`
+
+    const { error: uploadErr } = await supabase
+      .storage
+      .from('shift-images')
+      .upload(filePath, file)
+
+    if (uploadErr) {
+      setError('画像のアップロードに失敗しました。' + uploadErr.message)
+      setSaving(false)
+      return
+    }
+
+    const url = supabase.storage.from('shift-images').getPublicUrl(filePath).data.publicUrl
+    setPreviewUrl(url)
+    setStatus((prev) => ({ ...prev, shiftImage: true }))
+    setSaving(false)
+
+    const modal = document.getElementById('shiftImageModal')
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
+  }
+, error: userErr } = await supabase.auth.getUser()
     if (userErr || !user) {
       setError('ログイン情報が確認できません。')
       setSaving(false)
@@ -180,7 +216,7 @@ export default function DashboardPage() {
             <button className="btn-close" data-bs-dismiss="modal" />
           </div>
           <div className="modal-body">
-            <input type="file" accept="image/*" className="form-control mb-3" onChange={handleImageUpload} />
+            <input type="file" accept="image/*" className="form-control mb-3" onChange={handleUploadShiftImage} />
             {previewUrl && <img src={previewUrl} className="img-fluid" />}
           </div>
         </div></div>
