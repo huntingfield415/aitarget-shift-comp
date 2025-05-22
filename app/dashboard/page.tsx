@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 import { Modal } from 'bootstrap'
 
 export default function DashboardPage() {
@@ -17,6 +18,8 @@ export default function DashboardPage() {
     classInfo: '',
     shiftTime: '',
   })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const handleCreateShift = () => {
     const missing = Object.entries(status)
@@ -48,7 +51,35 @@ export default function DashboardPage() {
 
   const handleInput = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
-    setStatus((prev) => ({ ...prev, [field]: !!value }))
+    if (field !== 'className') {
+      setStatus((prev) => ({ ...prev, [field]: !!value }))
+    }
+  }
+
+  const handleSaveClassName = async () => {
+    setSaving(true)
+    setError('')
+    const { data: { user }, error: userErr } = await supabase.auth.getUser()
+    if (userErr || !user) {
+      setError('ログイン情報が確認できません。')
+      setSaving(false)
+      return
+    }
+
+    const { error: insertErr } = await supabase
+      .from('class_names')
+      .insert({ user_id: user.id, name: form.className })
+
+    if (insertErr) {
+      setError('保存に失敗しました。' + insertErr.message)
+      setSaving(false)
+      return
+    }
+
+    setStatus((prev) => ({ ...prev, className: true }))
+    setSaving(false)
+    const modal = document.getElementById('classNameModal')
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
   }
 
   return (
@@ -111,6 +142,13 @@ export default function DashboardPage() {
           </div>
           <div className="modal-body">
             <input type="text" className="form-control" placeholder="例：さくら組" value={form.className} onChange={(e) => handleInput('className', e.target.value)} />
+          </div>
+          <div className="modal-footer">
+            {error && <p className="text-danger me-auto">{error}</p>}
+            <button className="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            <button className="btn btn-primary" onClick={handleSaveClassName} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
           </div>
         </div></div>
       </div>
