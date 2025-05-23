@@ -1,7 +1,7 @@
 // /tests/components/StructureModal.test.tsx
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { StructureModal } from '@/components/templates/StructureModal'
+import { StructureModal } from '../../../components/templates/StructureModal'
 
 const dummyTemplate = {
   class_structure: [
