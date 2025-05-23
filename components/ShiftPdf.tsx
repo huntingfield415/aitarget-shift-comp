@@ -6,7 +6,7 @@ import {
   Text,
   View,
   StyleSheet,
-  Font
+  Image
 } from '@react-pdf/renderer'
 import { ShiftSlot } from '@/types'
 
@@ -15,6 +15,12 @@ const styles = StyleSheet.create({
     padding: 40,
     fontSize: 12,
     fontFamily: 'Helvetica',
+  },
+  logo: {
+    width: 100,
+    height: 40,
+    marginBottom: 10,
+    alignSelf: 'center',
   },
   title: {
     fontSize: 18,
@@ -33,6 +39,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRightWidth: 0,
     borderBottomWidth: 0,
+    marginBottom: 20,
   },
   row: {
     flexDirection: 'row',
@@ -50,6 +57,10 @@ const styles = StyleSheet.create({
     width: '33%',
     textAlign: 'center',
   },
+  footer: {
+    marginTop: 30,
+    fontSize: 12,
+  }
 })
 
 type Props = {
@@ -58,10 +69,13 @@ type Props = {
   slots: ShiftSlot[]
 }
 
+const dummyLogo = 'https://dummyimage.com/200x80/cccccc/000000&text=LOGO'
+
 export function ShiftPdf({ className, date, slots }: Props) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <Image style={styles.logo} src={dummyLogo} />
         <Text style={styles.title}>シフト表：{className}</Text>
         <Text style={styles.subtitle}>生成日：{date}</Text>
 
@@ -78,6 +92,10 @@ export function ShiftPdf({ className, date, slots }: Props) {
               <Text style={styles.cell}>{slot.required_staff}人</Text>
             </View>
           ))}
+        </View>
+
+        <View style={styles.footer}>
+          <Text>確認者署名：_________________________</Text>
         </View>
       </Page>
     </Document>
