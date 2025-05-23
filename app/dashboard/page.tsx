@@ -2,9 +2,31 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { STAFF_RATIO } from '@/lib/constants'
 import { Modal } from 'bootstrap'
 
+type ShiftSlot = {
+  time: string
+  label: string
+  required_staff: number
+}
+
+type GeneratedShift = {
+  id: string
+  class_name: string
+  date: string
+  slots: ShiftSlot[]
+}
+
 export default function DashboardPage() {
+  const [form, setForm] = useState({
+    className: '',
+    classInfo: '',
+    shiftTime: '',
+  })
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
   const [status, setStatus] = useState({
     shiftImage: false,
     className: false,
@@ -12,69 +34,31 @@ export default function DashboardPage() {
     shiftTime: false,
   })
   const [message, setMessage] = useState('')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [form, setForm] = useState({
-    className: '',
-    classInfo: '',
-    shiftTime: '',
-  })
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [generated, setGenerated] = useState<GeneratedShift | null>(null)
+  const [history, setHistory] = useState<GeneratedShift[]>([])
 
-  const handleCreateShift = () => {
-    const missing = Object.entries(status)
-      .filter(([, filled]) => !filled)
-      .map(([key]) => key)
-
-    if (missing.length > 0) {
-      const labelMap: Record<string, string> = {
-        shiftImage: '過去のシフト表',
-        className: 'クラスの名前',
-        classInfo: 'クラスの情報',
-        shiftTime: 'シフト時間とその名称',
-      }
-      const missingLabels = missing.map((m) => labelMap[m]).join('、')
-      setMessage(`情報が不十分なため、シフト表を作成できません。\n不足している情報：${missingLabels}`)
-    } else {
-      setMessage('✅ シフト表の作成を開始します（ダミー処理）')
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from('generated_shifts')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) setHistory(data)
     }
-  }
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
-      setStatus((prev) => ({ ...prev, shiftImage: true }))
-    }
-  }
+    fetchHistory()
+  }, [])
 
   const handleInput = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
-    if (field !== 'className') {
-      setStatus((prev) => ({ ...prev, [field]: !!value }))
-    }
+    setStatus((prev) => ({ ...prev, [field]: !!value }))
   }
 
-  const handleSaveClassName = async () => {
-    setSaving(true)
-    setError('')
-    const { data: { user }
-  const handleSaveClassInfo = async () => {
-    setSaving(true)
-    setError('')
-    const { data: { user }
-  const handleSaveShiftTime = async () => {
-    setSaving(true)
-    setError('')
-    const { data: { user }
   const handleUploadShiftImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     setSaving(true)
     setError('')
-
     const { data: { user }, error: userErr } = await supabase.auth.getUser()
     if (userErr || !user) {
       setError('ログインユーザーが確認できません。')
@@ -83,14 +67,9 @@ export default function DashboardPage() {
     }
 
     const filePath = `shift-${user.id}-${Date.now()}.${file.name.split('.').pop()}`
-
-    const { error: uploadErr } = await supabase
-      .storage
-      .from('shift-images')
-      .upload(filePath, file)
-
+    const { error: uploadErr } = await supabase.storage.from('shift-images').upload(filePath, file)
     if (uploadErr) {
-      setError('画像のアップロードに失敗しました。' + uploadErr.message)
+      setError('アップロード失敗: ' + uploadErr.message)
       setSaving(false)
       return
     }
@@ -99,187 +78,73 @@ export default function DashboardPage() {
     setPreviewUrl(url)
     setStatus((prev) => ({ ...prev, shiftImage: true }))
     setSaving(false)
-
     const modal = document.getElementById('shiftImageModal')
     if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
   }
-, error: userErr } = await supabase.auth.getUser()
-    if (userErr || !user) {
-      setError('ログイン情報が確認できません。')
-      setSaving(false)
+
+  const handleGenerate = async () => {
+    if (Object.values(status).some((v) => !v)) {
+      setMessage('必要な情報が不足しています。')
       return
     }
 
-    const { error: insertErr } = await supabase
-      .from('shift_times')
-      .insert({ user_id: user.id, content: form.shiftTime })
+    setSaving(true)
+    const res = await fetch('/api/generate-shift', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
+    const { result } = await res.json()
+    setGenerated(result)
 
-    if (insertErr) {
-      setError('保存に失敗しました。' + insertErr.message)
-      setSaving(false)
-      return
-    }
+    // 保存処理
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('generated_shifts').insert({
+      user_id: user?.id,
+      class_name: result.class,
+      slots: result.slots,
+      date: new Date().toISOString()
+    })
 
-    setStatus((prev) => ({ ...prev, shiftTime: true }))
+    setMessage('✅ シフト生成完了')
     setSaving(false)
-    const modal = document.getElementById('shiftTimeModal')
-    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
-  }
-, error: userErr } = await supabase.auth.getUser()
-    if (userErr || !user) {
-      setError('ログイン情報が確認できません。')
-      setSaving(false)
-      return
-    }
-
-    const { error: insertErr } = await supabase
-      .from('class_infos')
-      .insert({ user_id: user.id, info: form.classInfo })
-
-    if (insertErr) {
-      setError('保存に失敗しました。' + insertErr.message)
-      setSaving(false)
-      return
-    }
-
-    setStatus((prev) => ({ ...prev, classInfo: true }))
-    setSaving(false)
-    const modal = document.getElementById('classInfoModal')
-    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
-  }
-, error: userErr } = await supabase.auth.getUser()
-    if (userErr || !user) {
-      setError('ログイン情報が確認できません。')
-      setSaving(false)
-      return
-    }
-
-    const { error: insertErr } = await supabase
-      .from('class_names')
-      .insert({ user_id: user.id, name: form.className })
-
-    if (insertErr) {
-      setError('保存に失敗しました。' + insertErr.message)
-      setSaving(false)
-      return
-    }
-
-    setStatus((prev) => ({ ...prev, className: true }))
-    setSaving(false)
-    const modal = document.getElementById('classNameModal')
-    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide()
   }
 
   return (
-    <div>
-      <h2 className="mb-4">ダッシュボード</h2>
-      <p className="mb-3">下記の情報をすべて入力しないとシフト作成はできません。</p>
+    <div className="container py-4">
+      <h2 className="mb-4">シフト自動生成ダッシュボード</h2>
 
-      <ul className="list-group mb-3">
-        <li className="list-group-item d-flex justify-content-between">
-          <span>過去のシフト表（画像）</span>
-          <div>
-            <button className="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#shiftImageModal">入力</button>
-            {status.shiftImage ? '✔️ 済' : '未'}
+      <div className="mb-3">
+        <button className="btn btn-primary" onClick={handleGenerate} disabled={saving}>
+          {saving ? '生成中...' : 'シフトを生成する'}
+        </button>
+      </div>
+      {message && <div className="alert alert-info">{message}</div>}
+
+      {generated && (
+        <div className="card mb-4">
+          <div className="card-header">最新のシフト</div>
+          <div className="card-body">
+            <h5>{generated.class_name}</h5>
+            <ul className="list-group">
+              {generated.slots.map((slot, i) => (
+                <li key={i} className="list-group-item">
+                  {slot.label}（{slot.time}）: 必要保育士 {slot.required_staff}人
+                </li>
+              ))}
+            </ul>
           </div>
-        </li>
-        <li className="list-group-item d-flex justify-content-between">
-          <span>クラスの名前</span>
-          <div>
-            <button className="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#classNameModal">入力</button>
-            {status.className ? '✔️ 済' : '未'}
-          </div>
-        </li>
-        <li className="list-group-item d-flex justify-content-between">
-          <span>クラスの情報（年齢・人数）</span>
-          <div>
-            <button className="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#classInfoModal">入力</button>
-            {status.classInfo ? '✔️ 済' : '未'}
-          </div>
-        </li>
-        <li className="list-group-item d-flex justify-content-between">
-          <span>シフト時間とその名称</span>
-          <div>
-            <button className="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#shiftTimeModal">入力</button>
-            {status.shiftTime ? '✔️ 済' : '未'}
-          </div>
-        </li>
+        </div>
+      )}
+
+      <h4 className="mb-2">過去のシフト履歴</h4>
+      <ul className="list-group">
+        {history.map((h) => (
+          <li key={h.id} className="list-group-item">
+            {h.class_name} - {new Date(h.date).toLocaleString()}
+          </li>
+        ))}
       </ul>
-
-      <button className="btn btn-primary mb-3" onClick={handleCreateShift}>シフト表を作成する</button>
-      {message && <div className="alert alert-info white-space-pre-line">{message}</div>}
-
-      {/* モーダル：シフト画像 */}
-      <div className="modal fade" id="shiftImageModal" tabIndex={-1}>
-        <div className="modal-dialog"><div className="modal-content">
-          <div className="modal-header"><h5 className="modal-title">シフト表画像</h5>
-            <button className="btn-close" data-bs-dismiss="modal" />
-          </div>
-          <div className="modal-body">
-            <input type="file" accept="image/*" className="form-control mb-3" onChange={handleUploadShiftImage} />
-            {previewUrl && <img src={previewUrl} className="img-fluid" />}
-          </div>
-        </div></div>
-      </div>
-
-      {/* モーダル：クラス名 */}
-      <div className="modal fade" id="classNameModal" tabIndex={-1}>
-        <div className="modal-dialog"><div className="modal-content">
-          <div className="modal-header"><h5 className="modal-title">クラス名</h5>
-            <button className="btn-close" data-bs-dismiss="modal" />
-          </div>
-          <div className="modal-body">
-            <input type="text" className="form-control" placeholder="例：さくら組" value={form.className} onChange={(e) => handleInput('className', e.target.value)} />
-          </div>
-          <div className="modal-footer">
-            {error && <p className="text-danger me-auto">{error}</p>}
-            <button className="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-            <button className="btn btn-primary" onClick={handleSaveClassName} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
-        </div></div>
-      </div>
-
-      {/* モーダル：クラス情報 */}
-      <div className="modal fade" id="classInfoModal" tabIndex={-1}>
-        <div className="modal-dialog"><div className="modal-content">
-          <div className="modal-header"><h5 className="modal-title">クラス情報</h5>
-            <button className="btn-close" data-bs-dismiss="modal" />
-          </div>
-          <div className="modal-body">
-            <textarea className="form-control" placeholder="例：0歳3人、1歳4人" value={form.classInfo} onChange={(e) => handleInput('classInfo', e.target.value)} />
-          <div className="modal-footer">
-            {error && <p className="text-danger me-auto">{error}</p>}
-            <button className="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-            <button className="btn btn-primary" onClick={handleSaveClassInfo} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
-
-          </div>
-        </div></div>
-      </div>
-
-      {/* モーダル：シフト時間 */}
-      <div className="modal fade" id="shiftTimeModal" tabIndex={-1}>
-        <div className="modal-dialog"><div className="modal-content">
-          <div className="modal-header"><h5 className="modal-title">シフト時間と名称</h5>
-            <button className="btn-close" data-bs-dismiss="modal" />
-          </div>
-          <div className="modal-body">
-            <textarea className="form-control" placeholder="例：早番 7:00〜、中番 9:00〜" value={form.shiftTime} onChange={(e) => handleInput('shiftTime', e.target.value)} />
-          <div className="modal-footer">
-            {error && <p className="text-danger me-auto">{error}</p>}
-            <button className="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-            <button className="btn btn-primary" onClick={handleSaveShiftTime} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
-
-          </div>
-        </div></div>
-      </div>
     </div>
   )
 }
