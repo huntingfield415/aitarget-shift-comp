@@ -135,6 +135,7 @@ export default function TemplateListPage() {
                   templateContent={t.template}
                   tags={t.tags || []}
                   category={t.category || ''}
+                  logoUrl="/logo.png"
                 />
               }
               fileName={`${t.facility_name || 'shift'}_${t.template_month?.slice(0, 7)}.pdf`}
@@ -145,10 +146,30 @@ export default function TemplateListPage() {
                 </Button>
               )}
             </PDFDownloadLink>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await fetch('/api/store-pdf/route', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    facilityName: t.facility_name,
+                    templateMonth: t.template_month?.slice(0, 7),
+                    template: t.template,
+                    tags: t.tags,
+                    category: t.category,
+                    logoUrl: '/logo.png',
+                  }),
+                })
+                alert('PDFが保存されました')
+              }}
+            >
+              PDF保存
+            </Button>
           </li>
         ))}
       </ul>
     </div>
   )
 }
-git add app/templates/page.tsx
