@@ -112,6 +112,8 @@ export default function DashboardPage() {
     setSaving(false)
   }
 
+  const todayStr = new Date().toISOString().split('T')[0]
+
   return (
     <div className="container py-4">
       <h2 className="mb-4">シフト自動生成ダッシュボード</h2>
@@ -125,23 +127,7 @@ export default function DashboardPage() {
 
       {generated && (
         <div className="card mb-4">
-          <div className="card-header d-flex justify-content-between">
-            <span>最新のシフト</span>
-            <PDFDownloadLink
-              document={
-                <ShiftPdf
-                  className={generated.class_name}
-                  date={new Date().toLocaleDateString()}
-                  slots={generated.slots}
-                />
-              }
-              fileName={`${generated.class_name}_shift.pdf`}
-            >
-              {({ loading }) =>
-                loading ? 'PDFを生成中...' : <button className="btn btn-sm btn-outline-primary">PDFで保存</button>
-              }
-            </PDFDownloadLink>
-          </div>
+          <div className="card-header">最新のシフト</div>
           <div className="card-body">
             <h5>{generated.class_name}</h5>
             <ul className="list-group">
@@ -151,6 +137,22 @@ export default function DashboardPage() {
                 </li>
               ))}
             </ul>
+          </div>
+          <div className="card-footer text-end">
+            <PDFDownloadLink
+              document={
+                <ShiftPdf
+                  className={generated.class_name}
+                  date={todayStr}
+                  slots={generated.slots}
+                />
+              }
+              fileName={`${generated.class_name}_${todayStr}_シフト表.pdf`}
+            >
+              {({ loading }) =>
+                loading ? 'PDFを生成中...' : <button className="btn btn-outline-secondary">📄 PDFで保存</button>
+              }
+            </PDFDownloadLink>
           </div>
         </div>
       )}
