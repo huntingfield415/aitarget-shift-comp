@@ -99,7 +99,6 @@ export default function DashboardPage() {
     const { result } = await res.json()
     setGenerated(result)
 
-    // 保存処理
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('generated_shifts').insert({
       user_id: user?.id,
@@ -140,17 +139,11 @@ export default function DashboardPage() {
           </div>
           <div className="card-footer text-end">
             <PDFDownloadLink
-              document={
-                <ShiftPdf
-                  className={generated.class_name}
-                  date={todayStr}
-                  slots={generated.slots}
-                />
-              }
+              document={<ShiftPdf className={generated.class_name} date={todayStr} slots={generated.slots} />}
               fileName={`${generated.class_name}_${todayStr}_シフト表.pdf`}
             >
               {({ loading }) =>
-                loading ? 'PDFを生成中...' : <button className="btn btn-outline-secondary">📄 PDFで保存</button>
+                loading ? 'PDF生成中...' : <button className="btn btn-outline-secondary">📄 PDFで保存</button>
               }
             </PDFDownloadLink>
           </div>
@@ -160,8 +153,18 @@ export default function DashboardPage() {
       <h4 className="mb-2">過去のシフト履歴</h4>
       <ul className="list-group">
         {history.map((h) => (
-          <li key={h.id} className="list-group-item">
-            {h.class_name} - {new Date(h.date).toLocaleString()}
+          <li key={h.id} className="list-group-item d-flex justify-content-between align-items-center">
+            <span>
+              {h.class_name} - {new Date(h.date).toLocaleDateString()}
+            </span>
+            <PDFDownloadLink
+              document={<ShiftPdf className={h.class_name} date={new Date(h.date).toLocaleDateString()} slots={h.slots} />}
+              fileName={`${h.class_name}_${new Date(h.date).toISOString().split('T')[0]}_シフト表.pdf`}
+            >
+              {({ loading }) =>
+                loading ? '生成中...' : <button className="btn btn-sm btn-outline-primary">PDF</button>
+              }
+            </PDFDownloadLink>
           </li>
         ))}
       </ul>
