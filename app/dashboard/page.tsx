@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { STAFF_RATIO } from '@/lib/constants'
+import { PDFDownloadLink } from '@react-pdf/renderer'
+import { ShiftPdf } from '@/components/ShiftPdf'
 import { Modal } from 'bootstrap'
 
 type ShiftSlot = {
@@ -123,7 +125,23 @@ export default function DashboardPage() {
 
       {generated && (
         <div className="card mb-4">
-          <div className="card-header">最新のシフト</div>
+          <div className="card-header d-flex justify-content-between">
+            <span>最新のシフト</span>
+            <PDFDownloadLink
+              document={
+                <ShiftPdf
+                  className={generated.class_name}
+                  date={new Date().toLocaleDateString()}
+                  slots={generated.slots}
+                />
+              }
+              fileName={`${generated.class_name}_shift.pdf`}
+            >
+              {({ loading }) =>
+                loading ? 'PDFを生成中...' : <button className="btn btn-sm btn-outline-primary">PDFで保存</button>
+              }
+            </PDFDownloadLink>
+          </div>
           <div className="card-body">
             <h5>{generated.class_name}</h5>
             <ul className="list-group">
