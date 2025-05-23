@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
+import { PDFDownloadLink } from '@react-pdf/renderer'
+import { ShiftPdfDocument } from '@/components/pdf/ShiftPdfDocument'
 
 type ShiftTemplate = Database['public']['Tables']['shift_templates']['Row']
 type Garden = Database['public']['Tables']['gardens']['Row']
@@ -22,7 +24,6 @@ export default function TemplateListPage() {
   const [templates, setTemplates] = useState<ShiftTemplate[]>([])
   const [gardens, setGardens] = useState<Garden[]>([])
 
-  // フィルター項目
   const [tagFilter, setTagFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [gardenIdFilter, setGardenIdFilter] = useState('')
@@ -120,14 +121,34 @@ export default function TemplateListPage() {
 
       <ul className="space-y-4">
         {templates.map((t) => (
-          <li key={t.id} className="border rounded p-4">
+          <li key={t.id} className="border rounded p-4 space-y-2">
             <p><strong>カテゴリ:</strong> {t.category}</p>
             <p><strong>タグ:</strong> {(t.tags || []).join(', ')}</p>
             <p><strong>対象年月:</strong> {t.template_month?.slice(0, 7)}</p>
-            <pre className="whitespace-pre-wrap mt-2">{t.template}</pre>
+            <pre className="whitespace-pre-wrap">{t.template}</pre>
+
+            <PDFDownloadLink
+              document={
+                <ShiftPdfDocument
+                  facilityName={t.facility_name || '不明園'}
+                  templateMonth={t.template_month?.slice(0, 7) || ''}
+                  templateContent={t.template}
+                  tags={t.tags || []}
+                  category={t.category || ''}
+                />
+              }
+              fileName={`${t.facility_name || 'shift'}_${t.template_month?.slice(0, 7)}.pdf`}
+            >
+              {({ loading }) => (
+                <Button variant="outline" size="sm">
+                  {loading ? '生成中...' : 'PDF出力'}
+                </Button>
+              )}
+            </PDFDownloadLink>
           </li>
         ))}
       </ul>
     </div>
   )
 }
+git add app/templates/page.tsx
