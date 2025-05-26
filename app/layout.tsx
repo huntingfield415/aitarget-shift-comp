@@ -1,6 +1,5 @@
 // app/layout.tsx
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './globals.css'; // ← この行は削除してもOK（中身にTailwindが含まれているなら削除推奨）
 
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
